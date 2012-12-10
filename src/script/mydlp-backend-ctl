@@ -1,0 +1,93 @@
+#! /bin/bash
+
+### BEGIN INIT INFO
+# Provides:		mydlp
+# Required-Start:	$local_fs $remote_fs $network $named $time mysql
+# Required-Stop:	$local_fs $remote_fs $network $named $time mysql
+# Should-Start:		mail-transport-agent
+# Should-Stop:		mail-transport-agent
+# Default-Start:	2 3 4 5
+# Default-Stop:		0 1 6
+# Short-Description:	An open source data loss prevention solution.
+### END INIT INFO
+
+PATH=/usr/bin:/usr/sbin:/bin:/sbin
+
+JSVCBIN=/usr/bin/jsvc
+
+JAVA_HOME=/usr/lib/jvm/java-6-openjdk
+if [ "x86_64" == "$(uname -p)" -a -e "$JAVA_HOME""-amd64" ]; then
+	JAVA_HOME="$JAVA_HOME""-amd64"
+fi
+
+CDJAR=/usr/share/java/commons-daemon.jar
+MBJAR=/usr/share/mydlp/backend/mydlp-backend.jar
+TXJAR=/usr/share/mydlp/backend/tika-xps.jar
+
+BERRLOG=/var/log/mydlp/backend-error.log
+BOUTLOG=/var/log/mydlp/backend.log
+BDAEMON=com.mydlp.backend.Bootstrap
+
+HOMEDIR=/etc/mydlp
+
+PIDDIR=/var/run/mydlp
+PIDFILE2=$PIDDIR/backend.pid
+
+SERV=/usr/sbin/service
+BACKENDPORT=9090
+
+. /lib/lsb/init-functions
+
+JSVC_EXTRA_OPTS="-Xmx3g"
+
+if test -f /etc/default/mydlp; then
+	. /etc/default/mydlp
+fi
+
+JSVC="$JSVCBIN $JSVC_EXTRA_OPTS -home $JAVA_HOME -cp $CDJAR:$MBJAR:$TXJAR -pidfile $PIDFILE2"
+JSVC_STARTOPTS="-outfile $BOUTLOG -errfile $BERRLOG $BDAEMON "
+JSVC_OOME="-XX:OnOutOfMemoryError=/usr/sbin/mydlp-backend-ctl restart"
+
+is_port_open() {
+        local PORTNUM=$1
+        netstat -nltp 2>/dev/null|grep LISTEN|awk '-F ' '{print $4;}'|awk -F: '{print $NF;}'|grep -qe "^$PORTNUM$"
+}
+
+wait_for_backend() {
+	for i in $(seq 15); do
+		if is_port_open $BACKENDPORT; then
+			break
+		else
+			sleep 1
+			true
+		fi
+        done
+}
+
+start_backend() {
+        $JSVC "$JSVC_OOME" $JSVC_STARTOPTS;
+	wait_for_backend
+}
+
+stop_backend() {
+	$JSVC -stop $BDAEMON
+}
+
+case "$1" in
+  start)
+	start_backend
+	;;
+  stop)
+	stop_backend
+	;;
+
+  restart)
+	stop_backend
+	start_backend
+	;;
+  *)
+	log_action_msg "Usage: /etc/init.d/mydlp {start|stop|restart}"
+	exit 1
+esac
+
+exit 0

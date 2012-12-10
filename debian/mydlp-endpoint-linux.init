@@ -74,6 +74,28 @@ wait_for_backend() {
 	wait_for_port $BACKENDPORT 15
 }
 
+start_mydlp() {
+	log_daemon_msg "Starting MyDLP" "mydlp"
+	if HOME=$HOMEDIR start-stop-daemon --start --quiet --oknodo --chdir $HOMEDIR --pidfile $PIDFILE --exec $ERLANG -- $ERLANG_OPTS -config mydlp-sasl -boot mydlp; then
+		log_end_msg 0
+	else
+		log_end_msg 1
+	fi
+}
+
+stop_mydlp() {
+	if status_mydlp; then
+		log_daemon_msg "Stopping MyDLP" "mydlp"
+		if start-stop-daemon --stop --quiet --oknodo --pidfile $PIDFILE; then
+			log_end_msg 0
+		else
+			log_end_msg 1
+		fi
+	else
+		echo " * MyDLP is not running..."
+	fi
+}
+
 status_mydlp() {
         status_of_proc -p $PIDFILE mydlp MyDLP 2>&1 > /dev/null 
 }
@@ -129,8 +151,8 @@ agent_stop() {
 agent_start() {
 	check_piddir
 	cleanpids
-	start_mysql
 	start_backend
+	start_mydlp
 	cleanpids
 	ensure_udev
 }

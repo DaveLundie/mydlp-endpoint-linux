@@ -24,6 +24,8 @@ SSLDIR=/etc/mydlp/ssl
 LOG_DIR=/var/log/mydlp/
 LOGFILE_USER_GROUP="syslog.adm"
 
+CHOWN=/bin/chown
+
 if test -f /etc/default/mydlp; then
         . /etc/default/mydlp
 fi
