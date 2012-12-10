@@ -39,5 +39,7 @@ echo $REVISION > package_revision
 
 git submodule update --init --recursive
 
+cp -a engine.Makefile.am src/engine/src/mydlp/Makefile.am
+
 autoreconf -f -i
 
