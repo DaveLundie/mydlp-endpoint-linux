@@ -1,0 +1,12 @@
+# Default settings for MyDLP. This file is sourced by /bin/sh from
+# /etc/init.d/mydlp
+
+# Name command for Erlang node
+# ERLANG_NODE_NAME="-sname system"
+
+# Extra options for Erlang VM
+ERLANG_EXTRA_OPTS="+fnu +K true +P 524288 +A 30 -smp auto -env ERL_MAX_ETS_TABLES 32768 -env ERL_MAX_PORTS 1048576"
+
+# Extra options for Jsvc
+JSVC_EXTRA_OPTS="-Xmx3g"
+

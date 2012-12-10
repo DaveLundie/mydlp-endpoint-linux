@@ -1,0 +1,79 @@
+#!/bin/bash 
+# This script can be called in the following ways:
+#
+# After the package was installed:
+#	<postinst> configure <old-version>
+#
+#
+# If prerm fails during upgrade or fails on failed upgrade:
+#	<old-postinst> abort-upgrade <new-version>
+#
+# If prerm fails during removal:
+#	<old-postinst> abort-remove
+#
+# If prerm fails during deconfiguration of a package:
+#	<postinst> abort-deconfigure in-favour <new-package> <version>
+#		   removing <old-package> <version>
+#
+# If prerm fails during replacement due to conflict:
+#	<postinst> abort-remove in-favour <new-package> <version>
+
+OPENSSL=/usr/bin/openssl
+SSLDIR=/etc/mydlp/ssl
+
+LOG_DIR=/var/log/mydlp/
+LOGFILE_USER_GROUP="syslog.adm"
+
+if test -f /etc/default/mydlp; then
+        . /etc/default/mydlp
+fi
+
+# Generates SSL keys
+generate_keys() {
+	mkdir -p $SSLDIR || exit 1
+
+	[ -e $SSLDIR/private.pem ] || $OPENSSL genrsa 4096 > $SSLDIR/private.pem
+
+	[ -e $SSLDIR/public.pem ] || (echo -e "TR\nAnkara\nTechnopolis\nMyDLP\nMyDLP\n*\nsupport@mydlp.com\n"| $OPENSSL req -new -x509 -days 3650 -key $SSLDIR/private.pem -out $SSLDIR/public.pem)
+
+	[ -e $SSLDIR/user.der ] || $OPENSSL x509 -in $SSLDIR/public.pem -outform DER -out $SSLDIR/user.der
+	
+	return 0
+}
+
+restart_rsyslog() {
+	for f in $(/bin/ls $LOG_DIR)
+	do
+		local LOGFILE="$LOG_DIR""$f"
+		local CURRENT_USER_GROUP=$(/usr/bin/stat -c "%U.%G" $LOGFILE)
+		if [ -n "$CURRENT_USER_GROUP" -a "$CURRENT_USER_GROUP" == "$LOGFILE_USER_GROUP" ]; then
+			true
+		else
+			echo "Correcting ownership of log file ($f) ..."
+			$CHOWN -f $LOGFILE_USER_GROUP $LOGFILE || true
+		fi
+	done
+	/etc/init.d/rsyslog restart 2>&1 > /dev/null
+}
+
+case "$1" in
+    configure)
+	if [ -n "$2" ]; then
+		# update
+		restart_rsyslog
+	else
+		# first install
+		generate_keys
+	fi
+	;;
+    abort-upgrade|abort-deconfigure|abort-remove)
+	;;
+
+    *)
+	echo "$0 called with unknown argument \`$1'" 1>&2
+	exit 1
+	;;
+esac
+
+#DEBHELPER#
+exit 0

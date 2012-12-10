@@ -1,0 +1,2 @@
+SUBDIRS = logrotate udev rsyslog
+

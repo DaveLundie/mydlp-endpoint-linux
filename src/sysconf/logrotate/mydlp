@@ -1,0 +1,21 @@
+/var/log/mydlp/acl.log
+/var/log/mydlp/error.log
+/var/log/mydlp/messages.log
+/var/log/mydlp/smtp.log
+/var/log/mydlp/audit.log
+/var/log/mydlp/report_error.log
+/var/log/mydlp/report_info.log
+/var/log/mydlp/report_warning.log
+{
+	rotate 30
+	daily
+	dateext
+	missingok
+	notifempty
+	compress
+	delaycompress
+	sharedscripts
+	postrotate
+		reload rsyslog >/dev/null 2>&1 || true
+	endscript
+}

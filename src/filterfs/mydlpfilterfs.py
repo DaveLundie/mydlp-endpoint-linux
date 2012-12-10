@@ -13,7 +13,7 @@ from socket import socket
 
 import os
 
-from fuse import FUSE, FuseOSError, Operations, LoggingMixIn, fuse_get_context
+from mydlpfuse import FUSE, FuseOSError, Operations, LoggingMixIn, fuse_get_context
 
 TMP_PATH = "/var/cache/mydlpep/wcache"
 SAFE_MNT_PATH = "/mnt/mydlpep/safemount"

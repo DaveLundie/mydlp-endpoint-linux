@@ -1,0 +1,89 @@
+#!/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games
+
+ERLPIDFILE=/var/run/mydlp/mydlp.pid
+ERLPROCNAME=beam
+JAVAPIDFILE=/var/run/mydlp/backend.pid
+JAVAPROCNAME=jsvc
+
+INITSCRIPT=/etc/init.d/mydlp-endpoint-linux
+
+WATCHDOGLOGFILE=/var/log/mydlp/watchdog.log
+
+if test -f /etc/default/mydlp; then
+        . /etc/default/mydlp
+fi
+
+function isAlive {
+        local PIDFILE=$1
+        local PROCNAME=$2
+
+        if [ ! -e "$PIDFILE" ]; then
+                return 1
+        fi
+
+        local PID=$(cat $PIDFILE)
+        ps -p $PID|grep -q $PROCNAME
+}
+
+function isPortOpen() {
+        local PORTNUM=$1
+        netstat -nltp 2>/dev/null|grep LISTEN|awk '-F ' '{print $4;}'|awk -F: '{print $NF;}'|grep -qe "^$PORTNUM$"
+}
+
+function waitForPort() {
+        local PORTNUM=$1
+        for i in $(seq 15); do
+                sleep 1
+                if isPortOpen $PORTNUM; then break; fi
+        done
+}
+
+function isSeapOpen() {
+        isPortOpen 9099 || \
+                ( echo "Seap port is not open !!!" && false )
+}
+
+function isBackendOpen() {
+        isPortOpen 9090 || \
+                ( echo "Backend port is not open !!!" && false )
+}
+
+function isErlAlive {
+        isAlive $ERLPIDFILE $ERLPROCNAME || \
+                ( echo "MyDLP Erlang Engine is dead !!!" && false )
+}
+
+function isJavaAlive {
+        isAlive $JAVAPIDFILE $JAVAPROCNAME || \
+                ( echo "MyDLP Java Backend is dead !!!" && false )
+}
+
+function stopMyDLP {
+        echo "Stopping MyDLP..."
+        $INITSCRIPT stop > /dev/null 2>&1
+        sleep 2
+        $INITSCRIPT stop > /dev/null 2>&1
+        sleep 2
+        echo "Stopped MyDLP..."
+}
+
+function startMyDLP {
+        $INITSCRIPT start 
+}
+
+function restartMyDLP {
+        stopMyDLP
+        startMyDLP
+}
+
+function isMyDLPAlive {
+        isJavaAlive && isErlAlive && isSeapOpen && isBackendOpen
+}
+
+function watchdogAction {
+	isMyDLPAlive || ( echo "MyDLP is not properly running. Restarting MyDLP..." && restartMyDLP )
+}
+
+watchdogAction
+

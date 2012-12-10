@@ -1,0 +1,3 @@
+#!/bin/bash
+$(sleep 5; mp=`mount | grep $1 | cut -d\  -f 3`;/usr/share/mydlp-endpoint-linux/libexec/mydlpfilterfs.py $mp) &
+exit

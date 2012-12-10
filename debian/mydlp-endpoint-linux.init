@@ -1,0 +1,165 @@
+#! /bin/bash
+
+### BEGIN INIT INFO
+# Provides:		mydlp
+# Required-Start:	$local_fs $remote_fs $network $named $time mysql
+# Required-Stop:	$local_fs $remote_fs $network $named $time mysql
+# Should-Start:		mail-transport-agent
+# Should-Stop:		mail-transport-agent
+# Default-Start:	2 3 4 5
+# Default-Stop:		0 1 6
+# Short-Description:	An open source data loss prevention solution.
+### END INIT INFO
+
+PATH=/usr/bin:/usr/sbin:/bin:/sbin
+
+ERLANG=/usr/bin/erl
+
+HOMEDIR=/etc/mydlp
+
+PIDDIR=/var/run/mydlp
+PIDFILE=$PIDDIR/mydlp.pid
+PIDFILE2=$PIDDIR/backend.pid
+
+SERV=/usr/sbin/service
+
+SEAPPORT=9099
+BACKENDPORT=9090
+
+ERLANG_EXTRA_OPTS="+fnu +K true +P 524288 +A 30 -smp auto -env ERL_MAX_ETS_TABLES 32768 -env ERL_MAX_PORTS 1048576"
+
+. /lib/lsb/init-functions
+
+if test -f /etc/default/mydlp; then
+	. /etc/default/mydlp
+fi
+
+ERLANG_MYDLP_OPTS=""
+
+ERLANG_NODE_NAME="-sname system"
+ERLANG_OPTS="$ERLANG_NODE_NAME -noshell -detached $ERLANG_EXTRA_OPTS $ERLANG_MYDLP_OPTS"
+
+BACKEND_CTL=/usr/sbin/mydlp-backend-ctl
+
+check_piddir() {
+	[ -d $PIDDIR ] || \
+		mkdir -p $PIDDIR
+}
+
+is_port_open() {
+	local PORTNUM=$1
+	netstat -nltp 2>/dev/null|grep LISTEN|awk '-F ' '{print $4;}'|awk -F: '{print $NF;}'|grep -qe "^$PORTNUM$"
+}
+
+wait_for_port() {
+	local PORTNUM=$1
+	local TRYCOUNT=$2
+	for i in $(seq $TRYCOUNT); do
+	    sleep 1
+		if is_port_open $PORTNUM; then
+			break
+		else
+			sleep 1
+			true
+		fi
+	done
+}
+
+
+wait_for_seap() {
+	wait_for_port $SEAPPORT 15
+}
+
+wait_for_backend() {
+	wait_for_port $BACKENDPORT 15
+}
+
+status_mydlp() {
+        status_of_proc -p $PIDFILE mydlp MyDLP 2>&1 > /dev/null 
+}
+
+cleanpids() {
+	status_mydlp || rm -f $PIDFILE
+	status_backend || rm -f $PIDFILE2
+}
+
+start_backend() {
+	log_daemon_msg "Starting MyDLP Backend" "mydlp"
+        if $BACKEND_CTL start; then
+            log_end_msg 0
+        else
+            log_end_msg 1
+        fi
+	wait_for_backend
+}
+
+stop_backend() {
+	if status_backend; then
+		log_daemon_msg "Stopping MyDLP Backend" "mydlp"
+		if $BACKEND_CTL stop; then
+		    log_end_msg 0
+		else
+		    log_end_msg 1
+		fi
+	else
+		echo " * MyDLP Backend is not running..."
+	fi
+}
+
+status_backend() {
+        status_of_proc -p $PIDFILE2 mydlp MyDLP 2>&1 > /dev/null 
+}
+
+is_udev_alive() {
+	$SERV udev status 2>&1 > /dev/null
+}
+
+ensure_udev() {
+	is_udev_alive || $SERV udev start 2>&1 > /dev/null
+}
+
+agent_stop() {
+	check_piddir
+	cleanpids
+	stop_mydlp
+	stop_backend
+	cleanpids
+}
+
+agent_start() {
+	check_piddir
+	cleanpids
+	start_mysql
+	start_backend
+	cleanpids
+	ensure_udev
+}
+
+case "$1" in
+  start)
+	agent_start
+	;;
+  stop)
+	agent_stop
+	;;
+
+  reload|force-reload)
+	;;
+
+  restart)
+	agent_stop
+	sleep 1
+	agent_start
+	;;
+
+  status)
+	check_piddir
+        status_mydlp && exit 0 || exit $?
+	;;
+
+  *)
+	log_action_msg "Usage: /etc/init.d/mydlp-endpoint-linux {start|stop|reload|force-reload|restart|status}"
+	exit 1
+esac
+
+exit 0
