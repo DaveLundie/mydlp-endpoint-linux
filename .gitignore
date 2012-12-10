@@ -29,6 +29,8 @@ mydlp.rel
 *.beam
 *.boot
 *.script
+*.pyo
+*.pyc
 *~
 package_version
 package_revision
@@ -52,10 +54,10 @@ src/thrift/gen-py/
 src/thrift/gen-cpp/
 debian/changelog
 debian/files
-debian/mydlp.debhelper.log
-debian/mydlp.substvars
-debian/mydlp
-debian/mydlp.*.debhelper
+debian/mydlp-endpoint-linux.debhelper.log
+debian/mydlp-endpoint-linux.substvars
+debian/mydlp-endpoint-linux
+debian/mydlp-endpoint-linux.*.debhelper
 debian/stamp-autotools-files
 debian/stamp-makefile-build
 debian/stamp-autotools

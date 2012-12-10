@@ -4,5 +4,5 @@ cronddir = $(sysconfdir)/cron.d
 
 install-data-hook:
 	mkdir -p $(DESTDIR)$(cronddir) && \
-		cp -af debian/mydlp.cron $(DESTDIR)$(cronddir)/mydlp
+		cp -af debian/mydlp-endpoint-linux.cron $(DESTDIR)$(cronddir)/mydlp
 
