@@ -37,8 +37,7 @@ applyTemplate debian/changelog.tmpl debian/changelog
 echo $NEXTVERSION > package_version
 echo $REVISION > package_revision
 
-git submodule init
-git submodule update
+git submodule update --init --recursive
 
 autoreconf -f -i
 
