@@ -92,7 +92,7 @@ beamdir = $(ERLANG_INSTALL_LIB_DIR_mydlp)/ebin
 privdir = $(ERLANG_INSTALL_LIB_DIR_mydlp)/priv
 htmldir = $(ERLANG_INSTALL_LIB_DIR_mydlp)/doc
 bootdir = $(libdir)/erlang/bin
-ERLCFLAGS += -W -I ../thrift/gen-erl -D__MYDLP_ENDPOINT -D__PLATFORM_LINUX 
+ERLCFLAGS += -W -I ../engine/src/thrift/gen-erl -D__MYDLP_ENDPOINT -D__PLATFORM_LINUX 
 
 $(beam_DATA): $(dist_hrl_DATA)
 $(boot_DATA): $(beam_DATA)
