@@ -54,6 +54,9 @@ dist_erl_DATA = \
 	mydlp_spool.erl \
 	mime_util.erl
 
+mydlp_erl = \
+        $(dist_erl_DATA)
+
 dist_hrl_DATA = \
 	mydlp.hrl \
 	mydlp_acl.hrl \
