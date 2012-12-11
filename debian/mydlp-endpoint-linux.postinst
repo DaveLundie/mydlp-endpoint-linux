@@ -58,15 +58,15 @@ restart_rsyslog() {
 	/etc/init.d/rsyslog restart 2>&1 > /dev/null
 }
 
+restart_udev() {
+	/etc/init.d/udev restart 2>&1 > /dev/null
+}
+
 case "$1" in
     configure)
-	if [ -n "$2" ]; then
-		# update
-		restart_rsyslog
-	else
-		# first install
-		generate_keys
-	fi
+	generate_keys
+	restart_rsyslog
+	restart_udev
 	;;
     abort-upgrade|abort-deconfigure|abort-remove)
 	;;
