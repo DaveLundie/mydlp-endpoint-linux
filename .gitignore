@@ -44,3 +44,11 @@ debian/stamp-makefile-build
 debian/stamp-autotools
 debian/stamp-makefile-install
 tmp/
+src/agent/*.html 
+src/agent/*.log 
+src/agent/*.pid 
+src/agent/mydlp_license.erl 
+src/agent/edoc-info 
+src/agent/erlang.png 
+src/agent/stylesheet.css 
+src/agent/Mnesia.*/ 

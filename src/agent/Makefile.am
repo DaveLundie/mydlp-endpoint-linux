@@ -23,8 +23,7 @@ mydlpconfdir = $(sysconfdir)/mydlp
 mydlpconf_DATA = \
 	mydlp.app \
 	mydlp-sasl.config \
-	mydlp.conf \
-	denied_page.html
+	mydlp.conf
 
 dist_erl_DATA = \
 	dynamic_compile.erl \
