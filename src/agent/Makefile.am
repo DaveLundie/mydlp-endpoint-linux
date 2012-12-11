@@ -37,7 +37,7 @@ dist_erl_DATA = \
 	mydlp_sync.erl \
 	mydlp_acceptor.erl \
 	mydlp_sup.erl \
-	mydlp_matchers.erl 
+	mydlp_matchers.erl \
 	mydlp_mnesia.erl \
 	mydlp_tc.erl \
 	mydlp_api.erl \
