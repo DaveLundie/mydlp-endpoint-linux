@@ -94,7 +94,7 @@ class MyDLPFilter(LoggingMixIn, Operations):
         self.root = realpath(root)
         self.rwlock = Lock()
         self.files = {}
-        self.seap =  SeapClient("127.0.0.1" , 8000)
+        self.seap =  SeapClient("127.0.0.1" , 9099)
 
     def __call__(self, op, path, *args):
         return super(MyDLPFilter, self).__call__(op, self.root + path, *args)
