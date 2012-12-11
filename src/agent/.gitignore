@@ -1,0 +1,9 @@
+*.html
+*.log
+*.pid
+mydlp_license.erl
+edoc-info
+erlang.png
+stylesheet.css
+Mnesia.*/
+overview.edoc

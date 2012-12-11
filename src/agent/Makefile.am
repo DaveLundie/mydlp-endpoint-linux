@@ -32,7 +32,7 @@ dist_erl_DATA = \
 	mydlp_fsm.erl \
 	mydlp_item_push.erl \
 	mydlp_logger.erl \
-	mydlp_logger_file.erl \
+	mydlp_logger_syslog.erl \
 	mydlp_sync.erl \
 	mydlp_acceptor.erl \
 	mydlp_sup.erl \
