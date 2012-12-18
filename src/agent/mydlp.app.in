@@ -35,7 +35,7 @@
         mydlp_discover_fs,
         mydlp_item_push,
         mydlp_loglevel,
-        mydlp_logger_h,
+        mydlp_logger_syslog,
         mydlp_matchers,
         mydlp_mnesia,
         mydlp_pdm,
