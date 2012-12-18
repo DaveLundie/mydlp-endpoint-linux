@@ -4,16 +4,19 @@
 
 from __future__ import with_statement
 
+import os
+import shutil
+import logging
+
 from errno import *
 from os.path import realpath
 from sys import argv, exit, stdin
 from threading import Lock, Thread
-import shutil
 from socket import socket
+from logging.handlers import SysLogHandler
 
-import os
-
-from mydlpfuse import FUSE, FuseOSError, Operations, LoggingMixIn, fuse_get_context
+from mydlpfuse import FUSE, FuseOSError, Operations,\
+        LoggingMixIn, fuse_get_context
 
 TMP_PATH = "/var/cache/mydlpep/wcache"
 SAFE_MNT_PATH = "/mnt/mydlpep/safemount"
@@ -36,6 +39,7 @@ class ActiveFile():
                 str(pid) +  " path:" + self.path + " cpath:" + self.cpath +
                 " fh:" + str(self.fh) + " cfh:" + str(self.cfh) +
                 " changed :" + str(self.changed))
+   
 
 class SeapClient():
 
@@ -45,48 +49,54 @@ class SeapClient():
         self.sock = socket()
         self.sock.connect((server, port))
 
+    def send(message):
+        self.sock.sendall(message + "\n")
+        response = self.sock.recv(1024).strip()
+        return response
+
     def allow_write_by_path(self, path, userpath, context):
         uid, guid, pid = context
-        self.sock.sendall("BEGIN\n")
-        response = self.sock.recv(1024).strip()
+        response = send("BEGIN")
         if not response.startswith("OK"):
             return True
+
         opid = response.split()[1]
-        self.sock.sendall("SETPROP " + opid + " filename=" + userpath + "\n")
-        response = self.sock.recv(1024).strip()
+        response = send("SETPROP " + opid + " filename=" + userpath)
         if not response.startswith("OK"):
             return True
-        self.sock.sendall("SETPROP " + opid + " burn_after_reading=true\n")
-        response = self.sock.recv(1024).strip()
-        if not response.startswith("OK"):
-            return True
+
+        #This is not required in linux client
+        #self.sock.sendall("SETPROP " + opid + " burn_after_reading=true\n")
+        #response = self.sock.recv(1024).strip()
+        #if not response.startswith("OK"):
+        #   return True
+
         p = os.popen("getent passwd  |awk -v val=" + str(uid) + 
                      " -F \":\" '$3==val{print $1}'")
         username = p.readline()
         p.close()
-        self.sock.sendall("SETPROP " + opid + " user=" + username + "\n")
+        response = send("SETPROP " + opid + " user=" + username)
         if not response.startswith("OK"):
             return True
-        self.sock.sendall("PUSHFILE " + opid + " " + path + "\n")
+
+        response = send("PUSHFILE " + opid + " " + path)
         response = self.sock.recv(1024).strip()
         if not response.startswith("OK"):
             return True
-        self.sock.sendall("END " + opid + "\n")
-        response = self.sock.recv(1024).strip()
+
+        response = send("END " + opid)
         if not response.startswith("OK"):
             return True
-        self.sock.sendall("ACLQ " + opid + "\n")
-        response = self.sock.recv(1024).strip()
+
+        response = send("ACLQ " + opid)
         if not response.startswith("OK"):
             return True
-        
-        self.sock.sendall("DESTROY " + opid + "\n")
-        self.sock.recv(1024).strip()
-        
+        send("DESTROY " + opid)
         if response.split()[1] == "block":
             return False
         else:
             return True
+
 
 class MyDLPFilter(LoggingMixIn, Operations):
 
@@ -95,6 +105,8 @@ class MyDLPFilter(LoggingMixIn, Operations):
         self.rwlock = Lock()
         self.files = {}
         self.seap =  SeapClient("127.0.0.1" , 9099)
+        logger.info("Started on " + self.root)
+        logger.info("Connected to SEAP server 127.0.0.1:9099")
 
     def __call__(self, op, path, *args):
         return super(MyDLPFilter, self).__call__(op, self.root + path, *args)
@@ -114,12 +126,11 @@ class MyDLPFilter(LoggingMixIn, Operations):
             active_file.mode = mode
             active_file.flags = os.O_WRONLY | os.O_CREAT
             self.files.update({fh: active_file})
-        print "create; "+ self.files[fh].to_string()    
+        logger.debug("create "+ self.files[fh].to_string())
         return fh
 
     def destroy(self, private_data):
-        print mount_point
-
+        logger.info("stopped filter mounted on " + mount_point)
         
     def flush(self, path, fh):
         context = fuse_get_context()
@@ -130,28 +141,31 @@ class MyDLPFilter(LoggingMixIn, Operations):
                 try:
                     text = open(active_file.cpath, "r").read()
                     if not self.seap.allow_write_by_path(active_file.cpath,
-                                                         active_file.path, context):
-                    #if text.find("block") != -1 :
-                        print "block flush"
+                                                         active_file.path, 
+                                                         context):
+                        logger.info("block flush to " + active_file.path)
                         retval = -EACCES
                     else:
                         shutil.copy2(active_file.cpath, active_file.path)
-                        print "flush changed; " + active_file.to_string()
+                        logger.debug("flush changed file " +
+                                     active_file.to_string())
                 except (IOError, os.error) as why:
-                    errors.append((active_file.cpath, active_file.cpath, str(why)))
-                    print "here"
+                    errors.append((active_file.cpath, 
+                                   active_file.cpath, 
+                                   str(why)))
+                    logger.error("flush error" + errors)
                 active_file.changed = False
                 return retval
             else:
-                print "flush unchanged; " + active_file.to_string()
+                logger.debug("flush unchanged " + active_file.to_string())
                 return os.fsync(active_file.fh)
         else:
-            print "flush error EBADF fh:", active_file.fh  
+            logger.error("flush error EBADF fh:", active_file.fh)  
             return -EBADF
 
     def fsync(self, path, datasync, fh):
         context = fuse_get_context()
-        print "fync context:", context, " path: ", path
+        logger.debug("fync context:", context, " path: ", path)
         if fh in self.files:
             active_file = self.files[fh] 
             if active_file.changed:
@@ -159,28 +173,30 @@ class MyDLPFilter(LoggingMixIn, Operations):
                 try:
                     text = open(active_file.cpath, "r").read()
                     if not self.seap.allow_write_by_path(active_file.cpath,
-                                                         active_file.path, context):
+                                                         active_file.path, 
+                                                         context):
                     #if text.find("block") != -1:
-                        print "block sync"
+                        logger.info("block sync to " + active_file.path)
                         retval = -EACCES
                     else:
                         shutil.copy2(active_file.cpath, active_file.path)
-                        print "fsync changed: " + active_file.to_string()
+                        logger.info("fsync changed  file " +
+                                    active_file.to_string())
                 except (IOError, os.error) as why:
-                    print "here"
-                    errors.append((active_file.cpath, active_file.cpath, str(why)))
+                    errors.append((active_file.cpath, 
+                                   active_file.cpath, 
+                                   str(why)))
+                    logger.error("fsync error" + errors)     
                 active_file.changed = False
                 return retval
             else:
-                print "fsync unchanged; " + active_file.to_string()
+                logger.debug("fsync unchanged " + active_file.to_string())
                 return os.fsync(active_file.fh)
         else:
-            print "fsync error EBADF fh:", active_file.fh  
+            logger.error("fsync error EBADF fh:", active_file.fh)
             return -EBADF
 
     def getattr(self, path, fh=None):
-        uid, guid, pid  = fuse_get_context()
-        print "getattr: ", uid, guid, pid
         st = os.lstat(path)
         return dict((key, getattr(st, key)) for key in ('st_atime', 'st_ctime',
             'st_gid', 'st_mode', 'st_mtime', 'st_nlink', 'st_size', 'st_uid'))
@@ -188,8 +204,6 @@ class MyDLPFilter(LoggingMixIn, Operations):
     getxattr = None
 
     def link(self, target, source):
-        uid, guid, pid  = fuse_get_context()
-        print "link: ", uid, guid, pid
         return os.link(source, target)
 
     listxattr = None
@@ -199,14 +213,16 @@ class MyDLPFilter(LoggingMixIn, Operations):
     def open(self, path, flags):
         context = fuse_get_context()
         fh = os.open(path, flags)
-        print "open context:", context, " path: ", path
+        logger.debug("open context:", context, " path: ", path)
         if not (context, path) in self.files:
             active_file = ActiveFile(path, context, fh)
             active_file.flags = flags
-            print "open new: " + active_file.to_string()
+            print "open new file " + active_file.to_string()
             self.files.update({fh: active_file})
         return fh
 
+    #todo need to add sth here for apps read files 
+    #after writing before flushing
     def read(self, path, size, offset, fh):
         with self.rwlock:
             os.lseek(fh, offset, 0)
@@ -214,20 +230,16 @@ class MyDLPFilter(LoggingMixIn, Operations):
 
     def readdir(self, path, fh):
         uid, guid, pid  = fuse_get_context()
-        print "readdir: ", uid, guid, pid, fh
         return ['.', '..'] + os.listdir(path)
 
     readlink = os.readlink
 
     def release(self, path, fh):
-        print "release path: ", path, " fh:", fh
         del self.files[fh]
         return os.close(fh)
 
     def rename(self, old, new):
         uid, guid, pid  = fuse_get_context()
-        print "rename", uid, guid, pid
-
         return os.rename(old, new)
 
     rmdir = os.rmdir
@@ -259,35 +271,54 @@ class MyDLPFilter(LoggingMixIn, Operations):
                     os.makedirs(os.path.dirname(active_file.cpath))
                 try:
                     shutil.copy2(path, active_file.cpath)
-                    print "write cpath; " + active_file.to_string()
+                    logger.debug("write copy on change from " + path + " to "
+                                 + active_file.to_string())
+                    
                 except (IOError, os.error) as why:
                     print str(why)
                 if active_file.mode !=0:
                     active_file.cfh = os.open(active_file.cpath,
-                                              active_file.flags, active_file.mode)
+                                              active_file.flags, 
+                                              active_file.mode)
                 else:
-                    active_file.cfh = os.open(active_file.cpath, active_file.flags)
+                    active_file.cfh = os.open(active_file.cpath, 
+                                              active_file.flags)
             with self.rwlock:
-                print "write to cpath; " + active_file.to_string()
+                logger.debug("write to cpath " + active_file.to_string())
                 os.lseek(active_file.cfh, offset, 0)
                 return os.write(active_file.cfh, data)
         else:
-            print "write error EBADF fh:" + fh
+            logger.error("write error EBADF fh:" + fh)
             return -EBADF 
+
 
 def start_fuse(mount_point, safe_point):
     os.system("mkdir -p " + safe_point)
-    os.system("mount --bind " + mount_point + " " + safe_point)   
-    fuse = FUSE(MyDLPFilter(safe_point), mount_point, foreground=True, nonempty=True, allow_other=True)
+    os.system("mount --bind " + mount_point + " " + safe_point)
+    fuse = FUSE(MyDLPFilter(safe_point), mount_point, foreground=True, 
+                nonempty=True, allow_other=True)
+    
 
 if __name__ == '__main__':
+    logger = logging.getLogger()
+    handler = SysLogHandler(address = '/dev/log', 
+                            facility = SysLogHandler.LOG_LOCAL6)
+    formatter = logging.Formatter('MyDLP filterfs: %(levelname)s %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
+    
     if len(argv) != 2:
         print('usage: %s  <mountpoint>' % argv[0])
+        logger.error("Incorrect parameters")
         exit(1)
     
     mount_point = argv[1]
     safe_point = SAFE_MNT_PATH + mount_point
     
+    logger.info("Starting MyDLP filterfs on " + mount_point)
+    logger.debug("Safe mount on " + safe_point)
+    logger.debug("Temp path on " + TMP_PATH)
     start_fuse(mount_point, safe_point)
     os.system("umount "  + safe_point) 
     os.system("rm -rf " + safe_point)

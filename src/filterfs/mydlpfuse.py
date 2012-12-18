@@ -379,11 +379,8 @@ class FUSE(object):
 
         old_handler = signal(SIGINT, SIG_DFL)
 
-	print "In fuse main"
         err = _libfuse.fuse_main_real(len(args), argv, pointer(fuse_ops),
                                       sizeof(fuse_ops), None)
-	print "Exited fuse main"
-
         signal(SIGINT, old_handler)
 
         del self.operations     # Invoke the destructor
@@ -834,7 +831,6 @@ class Operations(object):
 
 
 class LoggingMixIn:
-    #log = logging.getLogger('fuse.log-mixin')
 
     def __call__(self, op, path, *args):
         #print '->', op, path, repr(args)
