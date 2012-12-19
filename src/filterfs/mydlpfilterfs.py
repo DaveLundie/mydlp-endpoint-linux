@@ -39,16 +39,16 @@ class ActiveFile():
         self.flags = 0
 
     def create_cpath(self):
-	if self.cpath is None:
+        if self.cpath is None:
             cpath_handle, self.cpath = tempfile.mkstemp(".tmp", "mydlpep-", TMP_PATH)
             os.close(cpath_handle)
 
     def duplicate_cpath(self):
-	if self.cpath is None:
+        if self.cpath is None:
             return None
         cpath2_handle, cpath2 = tempfile.mkstemp(".tmp", "mydlpep-", TMP_PATH)
         os.close(cpath2_handle)
-	shutil.copy2(self.cpath, cpath2)
+        shutil.copy2(self.cpath, cpath2)
         return cpath2
 
     def cleanup_cpath(self):
@@ -184,11 +184,12 @@ class MyDLPFilter(LoggingMixIn, Operations):
     def destroy(self, private_data):
         logger.info("stopped filter mounted on " + mount_point)
 
-    def handle_write(self, fh, context):
+    def handle_flush_sync(self, fh, context):
         if fh in self.files:
             active_file = self.files[fh] 
             if active_file.changed:
                 retval = os.fsync(active_file.cfh)
+                os.close(active_file.cfh)
                 try:
                     #text = open(active_file.cpath, "r").read()
                     tmpcpath = active_file.duplicate_cpath()
@@ -221,12 +222,12 @@ class MyDLPFilter(LoggingMixIn, Operations):
     def flush(self, path, fh):
         logger.debug("flush "+ self.files[fh].to_string())
         context = fuse_get_context()
-        return self.handle_write(fh, context)
+        return self.handle_flush_sync(fh, context)
 
     def fsync(self, path, datasync, fh):
         logger.debug("fsync "+ self.files[fh].to_string())
         context = fuse_get_context()
-        return self.handle_write(fh, context)
+        return self.handle_flush_sync(fh, context)
 
     def getattr(self, path, fh=None):
         st = os.lstat(path)
