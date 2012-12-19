@@ -19,14 +19,18 @@ from logging.handlers import SysLogHandler
 from mydlpfuse import FUSE, FuseOSError, Operations,\
         LoggingMixIn, fuse_get_context
 
-TMP_PATH = "/var/cache/mydlpep/wcache"
-SAFE_MNT_PATH = "/mnt/mydlpep/safemount"
+import quopri
+import tempfile
+import pwd
+
+TMP_PATH = "/var/tmp/mydlp"
+SAFE_MNT_PATH = "/var/tmp/mydlpep/safemount"
 
 class ActiveFile():
 
     def __init__(self, path, context, fh):
         self.path = path
-        self.cpath = TMP_PATH + path
+        self.cpath = None
         self.context = context
         self.changed = False
         self.fh = fh
@@ -34,10 +38,37 @@ class ActiveFile():
         self.mode = 0
         self.flags = 0
 
+    def create_cpath(self):
+	if self.cpath is None:
+            cpath_handle, self.cpath = tempfile.mkstemp(".tmp", "mydlpep-", TMP_PATH)
+            os.close(cpath_handle)
+
+    def duplicate_cpath(self):
+	if self.cpath is None:
+            return None
+        cpath2_handle, cpath2 = tempfile.mkstemp(".tmp", "mydlpep-", TMP_PATH)
+        os.close(cpath2_handle)
+	shutil.copy2(self.cpath, cpath2)
+        return cpath2
+
+    def cleanup_cpath(self):
+        if self.cpath is not None:
+            try:
+                os.remove(self.cpath)
+            except (IOError, os.error) as why:
+                errors = str(why) + " " + self.to_string() 
+                logger.error("cleanup_cpath error" + errors)     
+            self.cpath = None
+   
+    def cpath_to_string(self):
+        if self.cpath is None:
+            return "None"
+        return self.cpath
+
     def to_string(self):
         uid, gid, pid = self.context
         return ("uid:" + str(uid) + " gid:" + str(gid) + " pid:" + 
-                str(pid) +  " path:" + self.path + " cpath:" + self.cpath +
+                str(pid) +  " path:" + self.path + " cpath:" + self.cpath_to_string() +
                 " fh:" + str(self.fh) + " cfh:" + str(self.cfh) +
                 " changed :" + str(self.changed))
    
@@ -80,27 +111,24 @@ class SeapClient():
             if not response.startswith("OK"):
                 return True
             
+            userpathdir, userpathbase = os.path.split(userpath)
             opid = response.split()[1]
-            response = self.send("SETPROP " + opid + " filename=" + userpath)
+            response = self.send("SETPROP " + opid + " filename=" + quopri.encodestring(userpathbase))
+            if not response.startswith("OK"):
+                return True
+
+            response = self.send("SETPROP " + opid + " burn_after_reading=true")
             if not response.startswith("OK"):
                 return True
             
-            #This is not required in linux client
-            #self.sock.sendall("SETPROP " + opid + " burn_after_reading=true\n")
-            #response = self.sock.recv(1024).strip()
-            #if not response.startswith("OK"):
-            #return True
-            
-            p = os.popen("getent passwd  |awk -v val=" + str(uid) + 
-                             " -F \":\" '$3==val{print $1}'")
-            username = p.readline()
-            p.close()
+            user_tuple = pwd.getpwuid(uid)
+            username = user_tuple.pw_name
+
             response = self.send("SETPROP " + opid + " user=" + username.strip())
             if not response.startswith("OK"):
                 return True
             
-            response = self.send("PUSHFILE " + opid + " " + path)
-            response = self.sock.recv(1024).strip()
+            response = self.send("PUSHFILE " + opid + " " + quopri.encodestring(path))
             if not response.startswith("OK"):
                 return True
             
@@ -111,15 +139,13 @@ class SeapClient():
             response = self.send("ACLQ " + opid)
             if not response.startswith("OK"):
                 return True
-            send("DESTROY " + opid)
+            self.send("DESTROY " + opid)
             if response.split()[1] == "block":
-                return False   
+                return False
             else:
                 return True
-
         except (IOError, OSError) as why:
             logger.error("allow_write_by_path " + str(why) )
-
 
 class MyDLPFilter(LoggingMixIn, Operations):
 
@@ -157,17 +183,19 @@ class MyDLPFilter(LoggingMixIn, Operations):
 
     def destroy(self, private_data):
         logger.info("stopped filter mounted on " + mount_point)
-        
-    def flush(self, path, fh):
-        logger.debug("flush "+ self.files[fh].to_string())
-        context = fuse_get_context()
+
+    def handle_write(self, fh, context):
         if fh in self.files:
             active_file = self.files[fh] 
             if active_file.changed:
                 retval = os.fsync(active_file.cfh)
                 try:
-                    text = open(active_file.cpath, "r").read()
-                    if not self.seap.allow_write_by_path(active_file.cpath,
+                    #text = open(active_file.cpath, "r").read()
+                    tmpcpath = active_file.duplicate_cpath()
+                    if tmpcpath is None:
+                        logger.error("tmpcpath is None using cpath" + active_file.cpath)
+                        tmpcpath = active_file.cpath
+                    if not self.seap.allow_write_by_path(tmpcpath,
                                                          active_file.path, 
                                                          context):
                         logger.info("block flush to " + active_file.path)
@@ -177,10 +205,10 @@ class MyDLPFilter(LoggingMixIn, Operations):
                         logger.debug("flush changed file " +
                                      active_file.to_string())
                 except (IOError, os.error) as why:
-                    errors.append((active_file.cpath, 
-                                   active_file.cpath, 
-                                   str(why)))
-                    logger.error("flush error" + errors)
+                    errors = str(why) + " " + active_file.to_string() 
+                    logger.error("flush error " + errors)
+                finally:
+                    active_file.cleanup_cpath()
                 active_file.changed = False
                 return retval
             else:
@@ -189,40 +217,16 @@ class MyDLPFilter(LoggingMixIn, Operations):
         else:
             logger.error("flush error EBADF fh:", active_file.fh)  
             return -EBADF
+        
+    def flush(self, path, fh):
+        logger.debug("flush "+ self.files[fh].to_string())
+        context = fuse_get_context()
+        return self.handle_write(fh, context)
 
     def fsync(self, path, datasync, fh):
         logger.debug("fsync "+ self.files[fh].to_string())
         context = fuse_get_context()
-        logger.debug("fync context:", context, " path: ", path)
-        if fh in self.files:
-            active_file = self.files[fh] 
-            if active_file.changed:
-                retval = os.fsync(active_file.cfh)
-                try:
-                    text = open(active_file.cpath, "r").read()
-                    if not self.seap.allow_write_by_path(active_file.cpath,
-                                                         active_file.path, 
-                                                         context):
-                    #if text.find("block") != -1:
-                        logger.info("block sync to " + active_file.path)
-                        retval = -EACCES
-                    else:
-                        shutil.copy2(active_file.cpath, active_file.path)
-                        logger.info("fsync changed  file " +
-                                    active_file.to_string())
-                except (IOError, os.error) as why:
-                    errors.append((active_file.cpath, 
-                                   active_file.cpath, 
-                                   str(why)))
-                    logger.error("fsync error" + errors)     
-                active_file.changed = False
-                return retval
-            else:
-                logger.debug("fsync unchanged " + active_file.to_string())
-                return os.fsync(active_file.fh)
-        else:
-            logger.error("fsync error EBADF fh:", active_file.fh)
-            return -EBADF
+        return self.handle_write(fh, context)
 
     def getattr(self, path, fh=None):
         st = os.lstat(path)
@@ -293,7 +297,7 @@ class MyDLPFilter(LoggingMixIn, Operations):
             active_file = self.files[fh]
             if active_file.changed == False:
                 active_file.changed = True 
-                active_file.cpath = TMP_PATH + path               
+                active_file.create_cpath()
                 if not os.path.exists(os.path.dirname(active_file.cpath)):
                     os.makedirs(os.path.dirname(active_file.cpath))
                 try:
@@ -346,9 +350,9 @@ if __name__ == '__main__':
     logger.info("Starting MyDLP filterfs on " + mount_point)
     logger.debug("Safe mount on " + safe_point)
     logger.debug("Temp path on " + TMP_PATH)
+    # TODO: should check is there previos mounts on the same path.
     start_fuse(mount_point, safe_point)
     os.system("umount "  + safe_point) 
     os.system("rm -rf " + safe_point)
-    os.system("rm -rf " + TMP_PATH)
 
 
