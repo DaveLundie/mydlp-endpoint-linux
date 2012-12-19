@@ -7,6 +7,7 @@ from __future__ import with_statement
 import os
 import shutil
 import logging
+import time
 
 from errno import *
 from os.path import realpath
@@ -47,55 +48,77 @@ class SeapClient():
         self.server = server
         self.port = port
         self.sock = socket()
-        self.sock.connect((server, port))
+        self.sock.settimeout(10)
+        self.sock.connect((self.server, self.port))
 
-    def send(message):
-        self.sock.sendall(message + "\n")
-        response = self.sock.recv(1024).strip()
-        return response
+    def send(self, message):
+        logger.debug("try to send " + message)
+        for try_count in range(3):        
+            try:
+                logger.debug("try count " + str(try_count))
+                self.sock.sendall(message + "\r\n")
+                response = self.sock.recv(1024).strip()
+                logger.debug("<" + message + ">")
+                logger.debug("[" + response + "]")
+                return response
+            except IOError as why:
+                logger.error("Seap send IOError" + str(why))
+                #time.sleep(2)
+                self.sock = socket()
+                self.sock.settimeout(10)
+                self.sock.connect((self.server, self.port))
+
+        logger.error("Seap send failed to server" + self.server + ":" +
+                     str(self.port))
+        return ""
 
     def allow_write_by_path(self, path, userpath, context):
-        uid, guid, pid = context
-        response = send("BEGIN")
-        if not response.startswith("OK"):
-            return True
+        logger.debug("allow_write_by_path " + userpath)
+        try:
+            uid, guid, pid = context
+            response = self.send("BEGIN")
+            if not response.startswith("OK"):
+                return True
+            
+            opid = response.split()[1]
+            response = self.send("SETPROP " + opid + " filename=" + userpath)
+            if not response.startswith("OK"):
+                return True
+            
+            #This is not required in linux client
+            #self.sock.sendall("SETPROP " + opid + " burn_after_reading=true\n")
+            #response = self.sock.recv(1024).strip()
+            #if not response.startswith("OK"):
+            #return True
+            
+            p = os.popen("getent passwd  |awk -v val=" + str(uid) + 
+                             " -F \":\" '$3==val{print $1}'")
+            username = p.readline()
+            p.close()
+            response = self.send("SETPROP " + opid + " user=" + username.strip())
+            if not response.startswith("OK"):
+                return True
+            
+            response = self.send("PUSHFILE " + opid + " " + path)
+            response = self.sock.recv(1024).strip()
+            if not response.startswith("OK"):
+                return True
+            
+            response = self.send("END " + opid)            
+            if not response.startswith("OK"):
+                return True
+            
+            response = self.send("ACLQ " + opid)
+            if not response.startswith("OK"):
+                return True
+            send("DESTROY " + opid)
+            if response.split()[1] == "block":
+                return False   
+            else:
+                return True
 
-        opid = response.split()[1]
-        response = send("SETPROP " + opid + " filename=" + userpath)
-        if not response.startswith("OK"):
-            return True
-
-        #This is not required in linux client
-        #self.sock.sendall("SETPROP " + opid + " burn_after_reading=true\n")
-        #response = self.sock.recv(1024).strip()
-        #if not response.startswith("OK"):
-        #   return True
-
-        p = os.popen("getent passwd  |awk -v val=" + str(uid) + 
-                     " -F \":\" '$3==val{print $1}'")
-        username = p.readline()
-        p.close()
-        response = send("SETPROP " + opid + " user=" + username)
-        if not response.startswith("OK"):
-            return True
-
-        response = send("PUSHFILE " + opid + " " + path)
-        response = self.sock.recv(1024).strip()
-        if not response.startswith("OK"):
-            return True
-
-        response = send("END " + opid)
-        if not response.startswith("OK"):
-            return True
-
-        response = send("ACLQ " + opid)
-        if not response.startswith("OK"):
-            return True
-        send("DESTROY " + opid)
-        if response.split()[1] == "block":
-            return False
-        else:
-            return True
+        except (IOError, OSError) as why:
+            logger.error("allow_write_by_path " + str(why) )
 
 
 class MyDLPFilter(LoggingMixIn, Operations):
@@ -106,7 +129,7 @@ class MyDLPFilter(LoggingMixIn, Operations):
         self.files = {}
         self.seap =  SeapClient("127.0.0.1" , 9099)
         logger.info("Started on " + self.root)
-        logger.info("Connected to SEAP server 127.0.0.1:9099")
+        logger.info("Connecting to SEAP server 127.0.0.1:9099")
 
     def __call__(self, op, path, *args):
         return super(MyDLPFilter, self).__call__(op, self.root + path, *args)
@@ -120,7 +143,10 @@ class MyDLPFilter(LoggingMixIn, Operations):
 
     def create(self, path, mode):
         context = fuse_get_context()
-        fh = os.open(path, os.O_WRONLY | os.O_CREAT, mode)
+        try:
+            fh = os.open(path, os.O_WRONLY | os.O_CREAT, mode)
+        except:
+            return -EBADF            
         if not fh in self.files:
             active_file = ActiveFile(path, context, fh)
             active_file.mode = mode
@@ -133,6 +159,7 @@ class MyDLPFilter(LoggingMixIn, Operations):
         logger.info("stopped filter mounted on " + mount_point)
         
     def flush(self, path, fh):
+        logger.debug("flush "+ self.files[fh].to_string())
         context = fuse_get_context()
         if fh in self.files:
             active_file = self.files[fh] 
@@ -164,6 +191,7 @@ class MyDLPFilter(LoggingMixIn, Operations):
             return -EBADF
 
     def fsync(self, path, datasync, fh):
+        logger.debug("fsync "+ self.files[fh].to_string())
         context = fuse_get_context()
         logger.debug("fync context:", context, " path: ", path)
         if fh in self.files:
@@ -213,11 +241,10 @@ class MyDLPFilter(LoggingMixIn, Operations):
     def open(self, path, flags):
         context = fuse_get_context()
         fh = os.open(path, flags)
-        logger.debug("open context:", context, " path: ", path)
-        if not (context, path) in self.files:
+        if not fh in self.files:
             active_file = ActiveFile(path, context, fh)
             active_file.flags = flags
-            print "open new file " + active_file.to_string()
+            logger.debug("open new file " + active_file.to_string())
             self.files.update({fh: active_file})
         return fh
 
@@ -275,7 +302,7 @@ class MyDLPFilter(LoggingMixIn, Operations):
                                  + active_file.to_string())
                     
                 except (IOError, os.error) as why:
-                    print str(why)
+                    logger.error("write exception " + str(why))
                 if active_file.mode !=0:
                     active_file.cfh = os.open(active_file.cpath,
                                               active_file.flags, 
