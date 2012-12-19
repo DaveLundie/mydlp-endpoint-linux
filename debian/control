@@ -8,5 +8,5 @@ Standards-Version: 3.8.0
 Package: mydlp-endpoint-linux
 Architecture: any
 Conflicts: mydlp
-Depends: erlang-nox, thrift (>= 0.7.0-1), openssl, unrar, erlang-mysql-driver, coreutils, debianutils, grep, bash, p7zip-full, p7zip-rar, libelf1, libmagic1, binutils, procps, gzip, jsvc, rfc4627-erlang, rsyslog, tnef, fuse, libfuse2, python, udev
+Depends: erlang-nox, thrift (>= 0.7.0-1), openssl, unrar, coreutils, debianutils, grep, bash, p7zip-full, p7zip-rar, libelf1, libmagic1, binutils, procps, gzip, jsvc, rsyslog, tnef, fuse, libfuse2, python, udev, openjdk-6-jre
 Description: An open source data loss prevention solution.
