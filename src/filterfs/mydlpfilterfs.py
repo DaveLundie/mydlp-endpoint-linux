@@ -282,6 +282,9 @@ class MyDLPFilter(LoggingMixIn, Operations):
         return os.close(fh)
 
     def rename(self, old, new):
+        if not new.startswith(self.root):
+            new = self.root + new
+        logger.debug("rename: " + old + " " + new)  
         uid, guid, pid  = fuse_get_context()
         return os.rename(old, new)
 
