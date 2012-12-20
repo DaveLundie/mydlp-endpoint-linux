@@ -48,7 +48,8 @@ class ActiveFile():
             return None
         cpath2_handle, cpath2 = tempfile.mkstemp(".tmp", "mydlpep-", TMP_PATH)
         os.close(cpath2_handle)
-        shutil.copy2(self.cpath, cpath2)
+        os.remove(cpath2)
+        os.link(self.cpath, cpath2)
         return cpath2
 
     def cleanup_cpath(self):
@@ -117,6 +118,10 @@ class SeapClient():
             if not response.startswith("OK"):
                 return True
 
+            response = self.send("SETPROP " + opid + " destination=" + quopri.encodestring(userpath))
+            if not response.startswith("OK"):
+                return True
+
             response = self.send("SETPROP " + opid + " burn_after_reading=true")
             if not response.startswith("OK"):
                 return True
@@ -149,7 +154,8 @@ class SeapClient():
 
 class MyDLPFilter(LoggingMixIn, Operations):
 
-    def __init__(self, root):
+    def __init__(self, mount, root):
+        self.mount = realpath(mount)
         self.root = realpath(root)
         self.rwlock = Lock()
         self.files = {}
@@ -184,6 +190,11 @@ class MyDLPFilter(LoggingMixIn, Operations):
     def destroy(self, private_data):
         logger.info("stopped filter mounted on " + mount_point)
 
+    def get_real_path(self, path):
+        if path.startswith(self.root):
+            return self.mount + path[len(self.root):]
+        return path
+
     def handle_flush_sync(self, fh, context):
         if fh in self.files:
             active_file = self.files[fh] 
@@ -197,7 +208,7 @@ class MyDLPFilter(LoggingMixIn, Operations):
                         logger.error("tmpcpath is None using cpath" + active_file.cpath)
                         tmpcpath = active_file.cpath
                     if not self.seap.allow_write_by_path(tmpcpath,
-                                                         active_file.path, 
+                                                         self.get_real_path(active_file.path), 
                                                          context):
                         logger.info("block flush to " + active_file.path)
                         retval = -EACCES
@@ -327,7 +338,8 @@ class MyDLPFilter(LoggingMixIn, Operations):
 def start_fuse(mount_point, safe_point):
     os.system("mkdir -p " + safe_point)
     os.system("mount --bind " + mount_point + " " + safe_point)
-    fuse = FUSE(MyDLPFilter(safe_point), mount_point, foreground=True, 
+    
+    fuse = FUSE(MyDLPFilter(mount_point, safe_point), mount_point, foreground=True, 
                 nonempty=True, allow_other=True)
     
 
@@ -346,9 +358,9 @@ if __name__ == '__main__':
         exit(1)
     
     mount_point = argv[1]
-    safe_point = SAFE_MNT_PATH + mount_point
+    safe_point = SAFE_MNT_PATH + realpath(mount_point)
     
-    logger.info("Starting MyDLP filterfs on " + mount_point)
+    logger.debug("Starting MyDLP filterfs on " + mount_point)
     logger.debug("Safe mount on " + safe_point)
     logger.debug("Temp path on " + TMP_PATH)
     # TODO: should check is there previos mounts on the same path.
