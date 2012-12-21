@@ -25,6 +25,7 @@ filterfs_DATA = \
 
 
 filterfs_SCRIPTS = \
+	mydlp-mount-filterfs.py \
 	mydlpfilterfs.py
 
 clean-local:

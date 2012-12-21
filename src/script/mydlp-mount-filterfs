@@ -1,3 +1,81 @@
 #!/bin/bash
-$(sleep 5; mp=`mount | grep $1 | cut -d\  -f 3`;/usr/share/mydlp-endpoint-linux/libexec/mydlpfilterfs.py $mp) &
-exit
+PATH=/usr/bin:/usr/sbin:/bin:/sbin
+RUNDIR=/var/run/mydlpep
+
+function usage() {
+	echo "Usage: $0 start|stop DEVICE"
+	exit 1
+}
+
+if [ -z "$1" -o -z "$2" ]; then
+	usage
+fi
+
+ACTION=$1
+DEVICE=$2
+mkdir -p $RUNDIR
+PIDFILE=$RUNDIR/$DEVICE
+PID=""
+
+function read_pid() {
+	if [ -f "$PIDFILE" ]; then
+		PID=$(cat $PIDFILE)
+	else
+		return 1
+	fi
+	return 0
+}
+
+function delete_pid() {
+	rm -f $PIDFILE
+}
+
+function create_pid() {
+	echo $1 > $PIDFILE
+}
+
+function is_process_alive() {
+	if ps ax | grep -e "^ $PID " | grep 'mydlp-mount-filterfs.py' | grep "$DEVICE" > /dev/null; then
+		return 0
+	fi
+	return 1
+}
+
+function kill_process() {
+	kill $PID
+}
+
+function start_service() {
+	if read_pid; then
+		if is_process_alive; then
+			echo "Process already exists for $DEVICE , exiting"
+			exit 1
+		else
+			delete_pid
+		fi
+	fi
+
+	/usr/share/mydlp-endpoint-linux/libexec/mydlp-mount-filterfs.py $DEVICE & > /dev/null 2>&1
+	create_pid $!
+	exit 0
+}
+
+function stop_service() {
+	if read_pid; then
+		if is_process_alive; then
+			kill_process
+		else
+			delete_pid
+		fi
+	fi
+	exit 0
+}
+
+if [ "$ACTION" == "start" ]; then
+	start_service
+elif [ "$ACTION" == "stop" ]; then
+	stop_service
+else
+	usage
+fi
+

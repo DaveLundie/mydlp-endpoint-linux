@@ -1,1 +1,2 @@
-SUBSYSTEMS=="usb", KERNEL=="sd??", ACTION=="add", RUN+="/usr/sbin/mydlp-mount-filterfs %k"
+SUBSYSTEMS=="usb", KERNEL=="sd??", ACTION=="add", RUN+="/usr/sbin/mydlp-mount-filterfs start %k"
+SUBSYSTEMS=="usb", KERNEL=="sd??", ACTION=="remove", RUN+="/usr/sbin/mydlp-mount-filterfs stop %k"
