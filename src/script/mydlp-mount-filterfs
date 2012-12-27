@@ -42,7 +42,13 @@ function is_process_alive() {
 }
 
 function kill_process() {
-	kill $PID
+        sleep 3
+	kill -SIGINT $PID
+        sleep 2
+        kill $PID
+        sleep 1
+        kill -9 $PID
+	delete_pid
 }
 
 function start_service() {
@@ -63,7 +69,7 @@ function start_service() {
 function stop_service() {
 	if read_pid; then
 		if is_process_alive; then
-			kill_process
+			kill_process > /dev/null 2>&1  &
 		else
 			delete_pid
 		fi
