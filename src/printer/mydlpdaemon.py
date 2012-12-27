@@ -27,13 +27,14 @@ class SeapClient():
 				self.sock.connect((self.server, self.port))
 		return ""
 		
-	def acl_query(self, file_path, user_name):
+	def acl_query(self, file_path, user_name, file_name, printer_info):
 		try:
+			print "file_name: " + file_name
+			print "printer_info: " + printer_info
 			response = self.send("BEGIN")
 			if not response.startswith("OK"):
 				return True
 			opid = response.split()[1]
-			file_name = file_path.strip("/")[1]
 			response = self.send("SETPROP " + opid + " filename=" + file_name)
 			if not response.startswith("OK"):
 				return True
@@ -41,7 +42,7 @@ class SeapClient():
 			if not response.startswith("OK"):
 				return True
 
-			response = self.send("SETPROP " + opid + " printerName=" + "testPrinter") #TODO: should be used printer name
+			response = self.send("SETPROP " + opid + " printerName=" + printer_info) #TODO: should be used printer name
 			if not response.startswith("OK"):
 				return True
 
@@ -87,7 +88,14 @@ class DaemonAgent(Thread):
 			inp_arr = inp.split()
 			if inp_arr[0] == "file_path:":
 				file_path = inp_arr[1]
-				print file_path
+				self.conn.send("OK\n")
+				inp = self.conn.recv(1024).strip()
+			elif inp_arr[0] == "printer_info:":
+				printer_info = inp_arr[1]
+				self.conn.send("OK\n")
+				inp = self.conn.recv(1024).strip()
+			elif inp_arr[0] == "file_name:":
+				file_name = inp_arr[1]
 				self.conn.send("OK\n")
 				inp = self.conn.recv(1024).strip()
 			elif inp_arr[0] == "user_name:":
@@ -96,7 +104,7 @@ class DaemonAgent(Thread):
 				inp = self.conn.recv(1024).strip()
 			elif inp_arr[0] == "job_id:":
 				job_id = inp_arr[1]
-				response = self.seap_client.acl_query(file_path, user_name)
+				response = self.seap_client.acl_query(file_path, user_name, file_name, printer_info)
 				if response:
 					self.conn.send("OK\n")
 				else:
@@ -105,6 +113,10 @@ class DaemonAgent(Thread):
 					my_cups.cancelJob(int(job_id))
 				self.conn.close()
 				break
+			elif inp_arr[0] == "added:":
+				print "new printer added"
+				self.conn.send("OK\n")
+				inp = self.conn.recv(1024).strip()
 			else:
 				inp = self.conn.recv(1024).strip()
 		
