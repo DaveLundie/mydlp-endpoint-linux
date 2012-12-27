@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+# Copyright (c) 2012 Ozgen Muzac
+# License GPLv3, see http://www.gnu.org/licenses/gpl.html#content
+
+
 import socket
 import cups
 import signal
