@@ -1,0 +1,12 @@
+Linux Printer Filtering. Under development.
+
+mydlpdaemon.py must be started before any printing job. It does not have any specific path. It must be started with root privileges
+
+testcups should be placed in /usr/lib/cups/filter. This script is bridge between MyDLP and CUPS.
+
+maincups.py should be placed in /usr/lib/cups/filter. This script sends print jobs to the mydlpdaemon.
+
+File '/usr/share/cups/mime/cupsfilter.convs' should be modified. 
+-- "application/pdf         application/vnd.cups-pdf                22      pdftopdf" 
+	replace with
+++ "application/pdf         application/vnd.cups-pdf                22      testcups"
