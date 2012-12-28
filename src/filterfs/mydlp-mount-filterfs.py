@@ -20,7 +20,6 @@ import quopri
 import tempfile
 import pwd
 
-import pyudev
 import signal
 from time import sleep
 from subprocess import Popen
