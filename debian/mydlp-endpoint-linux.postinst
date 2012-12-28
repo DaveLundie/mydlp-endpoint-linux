@@ -66,12 +66,17 @@ reload_upstart() {
 	/sbin/initctl reload-configuration
 }
 
+patch_cupsfilters() {
+	/bin/sed -i "s/^\(application\/pdf\s*application\/vnd.cups-pdf\s*\w*\s*\).*\$/\1mydlp-cups/" /usr/share/cups/mime/cupsfilters.convs
+}
+
 case "$1" in
     configure)
 	generate_keys
 	restart_rsyslog
 	restart_udev
 	reload_upstart
+	patch_cupsfilters
 	;;
     abort-upgrade|abort-deconfigure|abort-remove)
 	;;
