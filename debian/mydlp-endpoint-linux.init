@@ -141,7 +141,7 @@ status_backend() {
 
 start_printer_backend() {
 	log_daemon_msg "Starting MyDLP Printer" "mydlp"
-        if start $PRINTER_BACKEND; then
+        if start $PRINTER_BACKEND > /dev/null 2>&1 ; then
             log_end_msg 0
         else
             log_end_msg 1
@@ -151,7 +151,7 @@ start_printer_backend() {
 
 stop_printer_backend() {
 	log_daemon_msg "Stopping MyDLP Printer" "mydlp"
-	if stop $PRINTER_BACKEND; then
+	if stop $PRINTER_BACKEND > /dev/null 2>&1 ; then
 	    log_end_msg 0
 	else
 	    log_end_msg 1
