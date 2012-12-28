@@ -11,7 +11,7 @@ from sys import argv
 from socket import socket
 from logging.handlers import SysLogHandler
 
-TMP_PATH = "/var/tmp/mydlp"
+TMP_PATH = "/var/tmp"
 
 class DaemonClient():
 
@@ -66,16 +66,19 @@ class DaemonClient():
 def start_transfering(job_id, user_name, printer_info, file_name):
 	try:
 		daemon_client = DaemonClient("127.0.0.1", 9100, job_id, user_name, printer_info, file_name)
-		fout = tempfile.mkstemp(".tmp", "mydlpprnt-", TMP_PATH)
+		fd, path = tempfile.mkstemp(".tmp", "mydlpprnt-", TMP_PATH)
 		f = sys.stdin
 		text = f.read()
+		fout = open(path, "w+b")
 		fout.write(text)
 		fout.close()
-		response = daemon_client.send_to_daemon(fout.name)
+		os.close(fd)
+		response = daemon_client.send_to_daemon(path)
 		if response:
 			sys.stdout.write(text)
 	except:
-		logger.error("error occurred when sending to main daemon: " + sys.exc_info()[0])
+		e = sys.exc_info()[0]
+		logger.error("error occurred when sending to main daemon: %s" % e)
 
 if __name__ == '__main__':
 	logger = logging.getLogger()
