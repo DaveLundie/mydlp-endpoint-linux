@@ -6,7 +6,10 @@ testcups should be placed in /usr/lib/cups/filter. This script is bridge between
 
 maincups.py should be placed in /usr/lib/cups/filter. This script sends print jobs to the mydlpdaemon.
 
-File '/usr/share/cups/mime/cupsfilter.convs' should be modified. 
+File '/usr/share/cups/mime/cupsfilter.convs' should be modified  with:
+
+sed -i "s/^\(application\/pdf\s*application\/vnd.cups-pdf\s*\w*\s*\).*\$/\1testcups/" /usr/share/cups/mime/cupsfilters.convs
+ 
 -- "application/pdf         application/vnd.cups-pdf                22      pdftopdf" 
 	replace with
 ++ "application/pdf         application/vnd.cups-pdf                22      testcups"

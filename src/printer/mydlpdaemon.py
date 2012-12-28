@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2012 Ozgen Muzac
+# Copyright (c) 2012 Ozgen Muzac <ozgen@mydlp.com>
 # License GPLv3, see http://www.gnu.org/licenses/gpl.html#content
-
 
 import socket
 import cups
@@ -115,6 +114,7 @@ class DaemonAgent(Thread):
 					self.conn.send("BLOCK\n")
 					my_cups = cups.Connection()
 					my_cups.cancelJob(int(job_id))
+					exit()
 				self.conn.close()
 				break
 			elif inp_arr[0] == "added:":
