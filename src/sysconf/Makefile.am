@@ -1,2 +1,2 @@
-SUBDIRS = logrotate udev rsyslog
+SUBDIRS = logrotate udev rsyslog upstart
 

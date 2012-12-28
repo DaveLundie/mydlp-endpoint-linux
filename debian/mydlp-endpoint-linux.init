@@ -41,6 +41,9 @@ ERLANG_OPTS="$ERLANG_NODE_NAME -noshell -detached $ERLANG_EXTRA_OPTS $ERLANG_MYD
 
 BACKEND_CTL=/usr/sbin/mydlp-backend-ctl
 
+PRINTER_BACKEND=mydlp-cups-daemon
+PRINTERBACKENDPORT=9100
+
 check_piddir() {
 	[ -d $PIDDIR ] || \
 		mkdir -p $PIDDIR
@@ -72,6 +75,10 @@ wait_for_seap() {
 
 wait_for_backend() {
 	wait_for_port $BACKENDPORT 15
+}
+
+wait_for_printer_backend() {
+	wait_for_port $PRINTERBACKENDPORT 15
 }
 
 start_mydlp() {
@@ -132,6 +139,25 @@ status_backend() {
         status_of_proc -p $PIDFILE2 mydlp MyDLP 2>&1 > /dev/null 
 }
 
+start_printer_backend() {
+	log_daemon_msg "Starting MyDLP Printer" "mydlp"
+        if start $PRINTER_BACKEND; then
+            log_end_msg 0
+        else
+            log_end_msg 1
+        fi
+	wait_for_printer_backend
+}
+
+stop_printer_backend() {
+	log_daemon_msg "Stopping MyDLP Printer" "mydlp"
+	if stop $PRINTER_BACKEND; then
+	    log_end_msg 0
+	else
+	    log_end_msg 1
+	fi
+}
+
 is_udev_alive() {
 	$SERV udev status 2>&1 > /dev/null
 }
@@ -143,6 +169,7 @@ ensure_udev() {
 agent_stop() {
 	check_piddir
 	cleanpids
+	stop_printer_backend
 	stop_mydlp
 	stop_backend
 	cleanpids
@@ -153,6 +180,7 @@ agent_start() {
 	cleanpids
 	start_backend
 	start_mydlp
+	start_printer_backend
 	cleanpids
 	ensure_udev
 }

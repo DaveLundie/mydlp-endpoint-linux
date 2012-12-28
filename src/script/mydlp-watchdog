@@ -49,6 +49,11 @@ function isBackendOpen() {
                 ( echo "Backend port is not open !!!" && false )
 }
 
+function isPrinterOpen() {
+        isPortOpen 9090 || \
+                ( echo "Backend port is not open !!!" && false )
+}
+
 function isErlAlive {
         isAlive $ERLPIDFILE $ERLPROCNAME || \
                 ( echo "MyDLP Erlang Engine is dead !!!" && false )
@@ -78,7 +83,7 @@ function restartMyDLP {
 }
 
 function isMyDLPAlive {
-        isJavaAlive && isErlAlive && isSeapOpen && isBackendOpen
+        isJavaAlive && isErlAlive && isSeapOpen && isBackendOpen && isPrinterOpen
 }
 
 function watchdogAction {

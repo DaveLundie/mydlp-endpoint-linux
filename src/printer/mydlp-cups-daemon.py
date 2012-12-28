@@ -41,9 +41,6 @@ class SeapClient():
 			response = self.send("SETPROP " + opid + " filename=" + file_name)
 			if not response.startswith("OK"):
 				return True
-			response = self.send("SETPROP " + opid + " destination=" + "printer") #TODO: should be used printer uri
-			if not response.startswith("OK"):
-				return True
 
 			response = self.send("SETPROP " + opid + " printerName=" + printer_info) #TODO: should be used printer name
 			if not response.startswith("OK"):

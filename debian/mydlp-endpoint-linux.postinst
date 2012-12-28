@@ -62,11 +62,16 @@ restart_udev() {
 	/etc/init.d/udev restart 2>&1 > /dev/null
 }
 
+reload_upstart() {
+	/sbin/initctl reload-configuration
+}
+
 case "$1" in
     configure)
 	generate_keys
 	restart_rsyslog
 	restart_udev
+	reload_upstart
 	;;
     abort-upgrade|abort-deconfigure|abort-remove)
 	;;

@@ -4,6 +4,6 @@
 # License GPLv3, see http://www.gnu.org/licenses/gpl.html#content
 
 
-pdftopdf "$1" "$2" "$3" "$4" "$5" "$6" | python /usr/lib/cups/filter/maincups.py "$1" "$2" "$3" "$4" "$5"
+pdftopdf "$1" "$2" "$3" "$4" "$5" "$6" | python /usr/lib/cups/filter/mydlp-cups-filter.py "$1" "$2" "$3" "$4" "$5"
 
 exit $?

@@ -8,7 +8,7 @@ maincups.py should be placed in /usr/lib/cups/filter. This script sends print jo
 
 File '/usr/share/cups/mime/cupsfilter.convs' should be modified  with:
 
-sed -i "s/^\(application\/pdf\s*application\/vnd.cups-pdf\s*\w*\s*\).*\$/\1testcups/" /usr/share/cups/mime/cupsfilters.convs
+sed -i "s/^\(application\/pdf\s*application\/vnd.cups-pdf\s*\w*\s*\).*\$/\1mydlp-cups/" /usr/share/cups/mime/cupsfilters.convs
  
 -- "application/pdf         application/vnd.cups-pdf                22      pdftopdf" 
 	replace with
