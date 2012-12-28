@@ -340,8 +340,8 @@ class MyDLPFilter(LoggingMixIn, Operations):
 
 
 def start_fuse(mount_point, safe_point):
-    os.system("mkdir -p " + safe_point)
-    os.system("mount --bind " + mount_point + " " + safe_point)
+    os.system("/bin/mkdir -p " + safe_point)
+    os.system("/bin/mount --bind " + mount_point + " " + safe_point)
     
     fuse = FUSE(MyDLPFilter(mount_point, safe_point), mount_point, foreground=True, 
                 nonempty=True, allow_other=True)
@@ -358,10 +358,10 @@ def set_signal_globals(mount, safemount):
 def signal_handler(signal, frame):
     logger.debug("terminating")
     if signal_mount is not None:
-        os.system("umount "  + signal_mount) 
+        os.system("/bin/umount "  + signal_mount) 
     if signal_safemount is not None:
-        os.system("umount "  + signal_safemount) 
-        os.system("rm -rf " + signal_safemount)
+        os.system("/bin/umount "  + signal_safemount) 
+        os.system("/bin/rm -rf " + signal_safemount)
     exit(0)
     
 if __name__ == '__main__':
@@ -384,7 +384,7 @@ if __name__ == '__main__':
     logger.debug("Starting MyDLP filterfs on " + mount_point)
     logger.debug("Safe mount on " + safe_point)
     logger.debug("Temp path on " + TMP_PATH)
-    os.system("rm -rf " + safe_point)
+    os.system("/bin/rm -rf " + safe_point)
     set_signal_globals(realpath(mount_point), safe_point)
     signal.signal(signal.SIGINT, signal_handler)
     # TODO: should check is there previos mounts on the same path.
