@@ -1,0 +1,18 @@
+#!/bin/bash
+PATH=/usr/bin:/usr/sbin:/bin:/sbin
+
+RESOLVCONFDOMAIN=$(grep -e '^domain\s' /etc/resolv.conf|sed -e 's/^domain\s\s*//')
+LOGGEDONDOMAIN=""
+
+if [ -n "$RESOLVCONFDOMAIN" ]; then
+	LOGGEDONDOMAIN=$RESOLVCONFDOMAIN
+else
+	LOGGEDONDOMAIN=$(hostname)
+fi
+
+if [ -n "$1" -a -f "$1" ]; then
+        echo -n $LOGGEDONDOMAIN > $1
+else
+        echo -n $LOGGEDONDOMAIN
+fi
+

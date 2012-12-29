@@ -1,0 +1,11 @@
+#!/bin/bash
+PATH=/usr/bin:/usr/sbin:/bin:/sbin
+
+LOGGEDONUSER=$(who|grep -e '\stty7\s'|cut -f1 -d' ')
+
+if [ -n "$1" -a -f "$1" ]; then
+        echo -n $LOGGEDONUSER > $1
+else
+        echo -n $LOGGEDONUSER
+fi
+
