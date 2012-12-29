@@ -3,6 +3,6 @@ sbin_SCRIPTS = \
 	mydlp-mount-filterfs \
 	mydlp-backend-ctl \
 	mydlp-log \
-	mydlp-loggen-on-domain \
-	mydlp-loggen-on-user \
+	mydlp-logged-on-domain \
+	mydlp-logged-on-user \
 	mydlp-watchdog
