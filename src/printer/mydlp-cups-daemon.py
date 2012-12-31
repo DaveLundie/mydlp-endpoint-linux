@@ -15,7 +15,7 @@ class SeapClient():
 		self.server = server
 		self.port = port
 		self.sock = socket.socket()
-		self.sock.settimeout(10)
+		self.sock.settimeout(145)
 		self.sock.connect((self.server, self.port))
 
 	def send(self, message):
