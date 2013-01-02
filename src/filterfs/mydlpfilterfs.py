@@ -361,7 +361,7 @@ def signal_handler(signal, frame):
         os.system("/bin/umount "  + signal_mount) 
     if signal_safemount is not None:
         os.system("/bin/umount "  + signal_safemount) 
-        os.system("/bin/rm -rf " + signal_safemount)
+        os.system("/bin/rmdir --ignore-fail-on-non-empty " + signal_safemount)
     exit(0)
     
 if __name__ == '__main__':
@@ -384,7 +384,7 @@ if __name__ == '__main__':
     logger.debug("Starting MyDLP filterfs on " + mount_point)
     logger.debug("Safe mount on " + safe_point)
     logger.debug("Temp path on " + TMP_PATH)
-    os.system("/bin/rm -rf " + safe_point)
+    os.system("/bin/rmdir --ignore-fail-on-non-empty " + safe_point)
     set_signal_globals(realpath(mount_point), safe_point)
     signal.signal(signal.SIGINT, signal_handler)
     # TODO: should check is there previos mounts on the same path.
