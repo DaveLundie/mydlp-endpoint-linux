@@ -137,6 +137,7 @@ connections = []
 
 while True:
 	conn, addr = s.accept()
+	conn.settimeout(147)
 	print 'Connected by', addr
 	a = DaemonAgent(conn, addr)
 	a.start()

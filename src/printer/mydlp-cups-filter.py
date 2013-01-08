@@ -23,6 +23,7 @@ class DaemonClient():
 		self.file_name = file_name
 		self.user_name = user_name
 		self.sock = socket()
+		self.sock.settimeout(147)
 		self.sock.connect((self.server, self.port))
 
 	def send(self, message):
@@ -34,26 +35,31 @@ class DaemonClient():
 		try:
 			message = "file_path: " + file_path
 			response = self.send(message)
+			logger.debug("file_path response: %s" %response)
 			if not response.startswith("OK"):
 				return True
 			
 			message = "user_name: " + self.user_name
 			response = self.send(message)
+			logger.debug("user_name response: %s" %response)
 			if not response.startswith("OK"):
 				return True		
 
 			message = "printer_info: " + self.printer_info
 			response = self.send(message)
+			logger.debug("printer_info response: %s" %response)
 			if not response.startswith("OK"):
 				return True		
 
 			message = "file_name: " + self.file_name
 			response = self.send(message)
+			logger.debug("file_name response: %s" %response)
 			if not response.startswith("OK"):
 				return True		
 
 			message = "job_id: " + str(self.job_id)
 			response = self.send(message)
+			logger.debug("job_id response: %s" %response)
 			if response.startswith("OK"):
 				return True
 			else:
@@ -67,6 +73,7 @@ def start_transfering(job_id, user_name, printer_info, file_name):
 	try:
 		daemon_client = DaemonClient("127.0.0.1", 9100, job_id, user_name, printer_info, file_name)
 		fd, path = tempfile.mkstemp(".tmp", "mydlpprnt-", TMP_PATH)
+		logger.debug("Tmp file path: %s" %path)
 		f = sys.stdin
 		text = f.read()
 		fout = open(path, "w+b")
