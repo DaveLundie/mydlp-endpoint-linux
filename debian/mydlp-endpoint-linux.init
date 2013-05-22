@@ -169,7 +169,7 @@ ensure_udev() {
 agent_stop() {
 	check_piddir
 	cleanpids
-	stop_printer_backend
+	#stop_printer_backend
 	stop_mydlp
 	stop_backend
 	cleanpids
@@ -180,9 +180,9 @@ agent_start() {
 	cleanpids
 	start_backend
 	start_mydlp
-	start_printer_backend
+	#start_printer_backend
 	cleanpids
-	ensure_udev
+	#ensure_udev
 }
 
 case "$1" in
