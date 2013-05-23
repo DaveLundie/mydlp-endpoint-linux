@@ -3,6 +3,13 @@ PATH=/usr/bin:/usr/sbin:/bin:/sbin
 
 LOGGEDONUSER=$(who|grep -e '\stty7\s'|cut -f1 -d' ')
 
+if [ -z "$LOGGEDONUSER" ]; then
+    DMUSER=$(grep "session opened for user" /var/log/auth.log|grep "lightdm:session"|tail -1|sed -e 's/^.* opened for user //g'|sed -e 's/ by .*$//g')
+    if [ -n "$DMUSER" -a "$DMUSER" != "lightdm" ]; then
+            LOGGEDONUSER=$DMUSER
+    fi
+fi
+
 if [ -n "$1" -a -f "$1" ]; then
         echo -n $LOGGEDONUSER > $1
 else
