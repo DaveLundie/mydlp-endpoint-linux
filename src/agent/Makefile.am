@@ -52,6 +52,7 @@ dist_erl_DATA = \
 	mydlp_mc.erl \
 	mydlp_discover_fs.erl \
 	mydlp_spool.erl \
+	mydlp_trapper.erl \
 	mime_util.erl
 
 mydlp_erl = \
