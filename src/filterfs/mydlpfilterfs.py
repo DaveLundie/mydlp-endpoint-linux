@@ -19,6 +19,7 @@ from logging.handlers import SysLogHandler
 from mydlpfuse import FUSE, FuseOSError, Operations,\
         LoggingMixIn, fuse_get_context
 
+import subprocess
 import signal
 import quopri
 import tempfile
@@ -146,6 +147,7 @@ class SeapClient():
             if not response.startswith("OK"):
                 return True
             self.send("DESTROY " + opid)
+            print response.split()[1]
             if response.split()[1] == "block":
                 return False
             else:
@@ -209,10 +211,10 @@ class MyDLPFilter(LoggingMixIn, Operations):
                         logger.error("tmpcpath is None using cpath" + active_file.cpath)
                         tmpcpath = active_file.cpath
                     if not self.seap.allow_write_by_path(tmpcpath,
-                                                         self.get_real_path(active_file.path), 
+                                                        self.get_real_path(active_file.path), 
                                                          context):
-                        logger.info("block flush to " + active_file.path)
-                        retval = -EACCES
+                       logger.info("block flush to " + active_file.path)
+                       retval = -EACCES
                     else:
                         shutil.copy2(active_file.cpath, active_file.path)
                         logger.debug("flush changed file " +
@@ -233,11 +235,13 @@ class MyDLPFilter(LoggingMixIn, Operations):
         
     def flush(self, path, fh):
         logger.debug("flush "+ self.files[fh].to_string())
+        print "FLUSH is called. Path: " + path
         context = fuse_get_context()
         return self.handle_flush_sync(fh, context)
 
     def fsync(self, path, datasync, fh):
         logger.debug("fsync "+ self.files[fh].to_string())
+        print "fsync: "+ self.files[fh].to_string()
         context = fuse_get_context()
         return self.handle_flush_sync(fh, context)
 
@@ -279,6 +283,7 @@ class MyDLPFilter(LoggingMixIn, Operations):
     readlink = os.readlink
 
     def release(self, path, fh):
+        print "RELEASE IS CALLED. Path: " + path
         del self.files[fh]
         return os.close(fh)
 
@@ -308,6 +313,7 @@ class MyDLPFilter(LoggingMixIn, Operations):
     utimens = os.utime
 
     def write(self, path, data, offset, fh):
+        #print "WRITE is called. Path: " + path
         context = fuse_get_context()
         if fh in self.files:
             active_file = self.files[fh]
@@ -340,11 +346,48 @@ class MyDLPFilter(LoggingMixIn, Operations):
 
 
 def start_fuse(mount_point, safe_point):
-    os.system("/bin/mkdir -p " + safe_point)
-    os.system("/bin/mount --bind " + mount_point + " " + safe_point)
+    #os.system("/bin/mkdir -p " + safe_point)
+    try:
+        if not os.path.exists(safe_point):
+            os.makedirs(safe_point)
+        #retcode = subprocess.call("/bin/mkdir -p " + safe_point, shell=True)
+        #if retcode < 0:
+            #logger.debug("MKDIR Process terminated by signal: " + str(retcode))
+            #print "MKDIR Process terminated by signal: " + str(retcode)
+        #else:
+            #logger.debug("Mkdir process returned: " + str(retcode))
+            #print "Mkdir process returned: " + str(retcode)
+    except OSError as e:
+        logger.debug("mkdir execution failed: " + e)
+        print "mkdir execution failed: " + e
+
+    try:
+        retcode = subprocess.call("/bin/mount --bind " + mount_point + " " + safe_point, shell=True)
+        if retcode < 0:
+            #logger.debug("MOUNT BIND Process terminated by signal: " + str(retcode))
+            print "MOUNT BIND Process terminated by signal: " + str(retcode)
+        else:
+            #logger.debug("Mount bind process returned: " + str(retcode))
+            print "Mount bind process returned: " + str(retcode)
+    except OSError as e:
+        #logger.debug("mount bind execution failed: " + e)
+        print "mount bind execution failed: " + e
+        #os.system("/bin/mount --bind " + mount_point + " " + safe_point)
+
+    #os.system("/bin/mount --bind " + mount_point + " " + safe_point)
     
     fuse = FUSE(MyDLPFilter(mount_point, safe_point), mount_point, foreground=True, 
                 nonempty=True, allow_other=True)
+
+def remove_old_safe_mount(path):
+    if os.path.isdir(path):
+        for f in os.listdir(path):
+            abs_path = os.path.join(path, f)
+            remove_old_safe_mount(abs_path)
+        os.rmdir(path)
+    else:
+        os.remove(path)
+
 
 signal_mount = None
 signal_safemount = None
@@ -384,7 +427,9 @@ if __name__ == '__main__':
     logger.debug("Starting MyDLP filterfs on " + mount_point)
     logger.debug("Safe mount on " + safe_point)
     logger.debug("Temp path on " + TMP_PATH)
-    os.system("/bin/rmdir --ignore-fail-on-non-empty " + safe_point)
+#    os.system("/bin/rmdir --ignore-fail-on-non-empty " + safe_point)
+    if os.path.exists(safe_point):
+        remove_old_safe_mount(safe_point)
     set_signal_globals(realpath(mount_point), safe_point)
     signal.signal(signal.SIGINT, signal_handler)
     # TODO: should check is there previos mounts on the same path.

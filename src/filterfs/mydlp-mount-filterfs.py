@@ -122,7 +122,7 @@ class PartitionTracer():
         for line in open('/proc/mounts'):
             if self.is_dev(line):
                 parts = line.split()
-                if self.is_safemount(parts[1]):
+                if self.is_safemount(parts[1]):#This statement may be unneccessary. Because there is no line starts with /dev and continue /var/tmp/mydlpep/... 
                     continue
                 else:
                     new_mounts[parts[0]] = parts[1]
