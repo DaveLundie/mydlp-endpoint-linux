@@ -443,7 +443,6 @@ if __name__ == '__main__':
                     logger.debug("Unmount Process of safe mount point terminated by signal: " + str(retcode))
                     print "Unmount Process of safe mount point terminated by signal: " + str(retcode)
                 else:
-                    remove_old_safe_mount(signal_safemount)
                     logger.debug("Umount process of safe mount point returned: " + str(retcode))
                     print "Unmount process of safe mount point returned: " + str(retcode)
             except OSError as e:
