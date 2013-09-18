@@ -355,12 +355,12 @@ def start_fuse(mount_point, safe_point):
 
     try:
         retcode = subprocess.call("/bin/mount --bind " + mount_point + " " + safe_point, shell=True)
-        if retcode < 0:
-            logger.debug("MOUNT BIND Process terminated by signal: " + str(retcode))
-            print "MOUNT BIND Process terminated by signal: " + str(retcode)
-        else:
+        if retcode == 0:
             logger.debug("Mount bind process returned: " + str(retcode))
             print "Mount bind process returned: " + str(retcode)
+        else:
+            logger.debug("MOUNT BIND Process terminated by signal: " + str(retcode))
+            print "MOUNT BIND Process terminated by signal: " + str(retcode)
     except OSError as e:
         logger.debug("mount bind execution failed: " + e.strerror)
         print "mount bind execution failed: " + e.strerror
@@ -389,27 +389,28 @@ def set_signal_globals(mount, safemount):
 
 def signal_handler(signal, frame):
     logger.debug("terminating")
+    print "Signal handler is called"
     if signal_mount is not None:
         try:
-            retcode = subprocess.call("/bin/umount " + signal_mount, shell=True)
-            if retcode < 0:
-                logger.debug("Unmount Process of mount point terminated by signal: " + str(retcode))
-                print "Unmount Process of mount point terminated by signal: " + str(retcode)
-            else:
+            retcode = subprocess.call("/bin/umount -l " + signal_mount, shell=True)
+            if retcode == 0:
                 logger.debug("Umount process of mount point returned: " + str(retcode))
                 print "Unmount process of mount point returned: " + str(retcode)
+            else:
+                logger.debug("Unmount Process of mount point terminated by signal: " + str(retcode))
+                print "Unmount Process of mount point terminated by signal: " + str(retcode)
         except OSError as e:
             logger.debug("Unmount of mount point execution failed: " + e.strerror)
     if signal_safemount is not None:
         try:
-            retcode = subprocess.call("/bin/umount " + signal_safemount, shell=True)
-            if retcode < 0:
-                logger.debug("Unmount Process of safe mount point terminated by signal: " + str(retcode))
-                print "Unmount Process of safe mount point terminated by signal: " + str(retcode)
-            else:
+            retcode = subprocess.call("/bin/umount -l " + signal_safemount, shell=True)
+            if retcode == 0:
                 remove_old_safe_mount(signal_safemount)
                 logger.debug("Umount process of safe mount point returned: " + str(retcode))
                 print "Unmount process of safe mount point returned: " + str(retcode)
+            else:
+                logger.debug("Unmount Process of safe mount point terminated by signal: " + str(retcode))
+                print "Unmount Process of safe mount point terminated by signal: " + str(retcode)
         except OSError as e:
             logger.debug("Unmount of safemount point execution failed: " + e.strerror)
     exit(0)
@@ -438,13 +439,13 @@ if __name__ == '__main__':
     if os.path.exists(safe_point):
         if os.path.ismount(safe_point):
             try:
-                retcode = subprocess.call("/bin/umount " + safe_point, shell=True)
-                if retcode < 0:
-                    logger.debug("Unmount Process of safe mount point terminated by signal: " + str(retcode))
-                    print "Unmount Process of safe mount point terminated by signal: " + str(retcode)
-                else:
+                retcode = subprocess.call("/bin/umount -l " + safe_point, shell=True)
+                if retcode == 0:
                     logger.debug("Umount process of safe mount point returned: " + str(retcode))
                     print "Unmount process of safe mount point returned: " + str(retcode)
+                else:
+                    logger.debug("Unmount Process of safe mount point terminated by signal: " + str(retcode))
+                    print "Unmount Process of safe mount point terminated by signal: " + str(retcode)
             except OSError as e:
                 logger.debug("Unmount of safemount point execution failed: " + e.strerror)
  
