@@ -102,7 +102,6 @@ class SeapClient():
                     return response
             except IOError as why:
                 logger.error("Seap send IOError" + str(why))
-                print "Seap send IOError" + str(why)
                 #time.sleep(2)
                 self.sock = socket()
                 self.sock.settimeout(10)
@@ -118,24 +117,20 @@ class SeapClient():
             uid, guid, pid = context
             response = self.send("BEGIN")
             if not response.startswith("OK"):
-                print "Return true from aclq. Begin: " + response
                 return True
             
             userpathdir, userpathbase = os.path.split(userpath)
             opid = response.split()[1]
             response = self.send("SETPROP " + opid + " filename=" + quopri.encodestring(userpathbase))
             if not response.startswith("OK"):
-                print "Return true from aclq. Setprop1: " + response
                 return True
 
             response = self.send("SETPROP " + opid + " destination=" + quopri.encodestring(userpath))
             if not response.startswith("OK"):
-                print "Return true from aclq. Setprop2: " + response
                 return True
 
             response = self.send("SETPROP " + opid + " burn_after_reading=true")
             if not response.startswith("OK"):
-                print "Return true from aclq. Setprop3: " + response
                 return True
             
             user_tuple = pwd.getpwuid(uid)
@@ -143,22 +138,18 @@ class SeapClient():
 
             response = self.send("SETPROP " + opid + " user=" + username.strip())
             if not response.startswith("OK"):
-                print "Return true from aclq. Setprop4: " + response
                 return True
             
             response = self.send("PUSHFILE " + opid + " " + quopri.encodestring(path))
             if not response.startswith("OK"):
-                print "Return true from pushfile. Response: " + response
                 return True
             
             response = self.send("END " + opid)            
             if not response.startswith("OK"):
-                print "Return true from end. Response: " + response
                 return True
             
             response = self.send("ACLQ " + opid)
             if not response.startswith("OK"):
-                print "Return true from aclq. Response: " + response
                 return True
             self.send("DESTROY " + opid)
             print response.split()[1]
