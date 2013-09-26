@@ -332,7 +332,6 @@ class MyDLPFilter(LoggingMixIn, Operations):
     utimens = os.utime
 
     def write(self, path, data, offset, fh):
-        print "WRITE is called. Path: " + path
         context = fuse_get_context()
         if fh in self.files:
             active_file = self.files[fh]
