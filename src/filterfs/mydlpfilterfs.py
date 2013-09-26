@@ -30,11 +30,16 @@ SAFE_MNT_PATH = "/var/tmp/mydlpep/safemount"
 
 class ActiveFile():
 
-    def __init__(self, path, context, fh):
+    def __init__(self, path, context, fh, is_newly_created):
         self.path = path
         self.cpath = None
         self.context = context
         self.changed = False
+        self.recovery_file = None
+        if not is_newly_created:
+            rpath_handle, self.recovery_file = tempfile.mkstemp(".tmp", "mydlpep-", TMP_PATH)
+            os.close(rpath_handle)
+            shutil.copy2(self.path, self.recovery_file)
         self.fh = fh
         self.cfh = 0
         self.mode = 0
@@ -182,13 +187,14 @@ class MyDLPFilter(LoggingMixIn, Operations):
     chown = os.chown
 
     def create(self, path, mode):
+        print "CREATE is called with path: " + path
         context = fuse_get_context()
         try:
             fh = os.open(path, os.O_WRONLY | os.O_CREAT, mode)
         except:
             return -EBADF            
         if not fh in self.files:
-            active_file = ActiveFile(path, context, fh)
+            active_file = ActiveFile(path, context, fh, True)
             active_file.mode = mode
             active_file.flags = os.O_WRONLY | os.O_CREAT
             self.files.update({fh: active_file})
@@ -215,10 +221,15 @@ class MyDLPFilter(LoggingMixIn, Operations):
                     if tmpcpath is None:
                         logger.error("tmpcpath is None using cpath" + active_file.cpath)
                         tmpcpath = active_file.cpath
+                    print "Real Path: " + self.get_real_path(active_file.path)
                     if not self.seap.allow_write_by_path(tmpcpath,
                                                         self.get_real_path(active_file.path), 
                                                          context):
                        logger.info("block flush to " + active_file.path)
+                       if active_file.recovery_file is None:
+                           os.remove(active_file.path)
+                       else:
+                           shutil.copy2(active_file.recovery_file, active_file.path)
                        retval = -EACCES
                     else:
                         shutil.copy2(active_file.cpath, active_file.path)
@@ -232,6 +243,7 @@ class MyDLPFilter(LoggingMixIn, Operations):
                 active_file.changed = False
                 return retval
             else:
+                print "Active file unchanged"
                 logger.debug("flush unchanged " + active_file.to_string())
                 return os.fsync(active_file.fh)
         else:
@@ -265,10 +277,12 @@ class MyDLPFilter(LoggingMixIn, Operations):
     mknod = os.mknod
 
     def open(self, path, flags):
+        print "OPEN is called with path: " + path
         context = fuse_get_context()
         fh = os.open(path, flags)
         if not fh in self.files:
-            active_file = ActiveFile(path, context, fh)
+            print "OPEN is called fh is not in dictionary"
+            active_file = ActiveFile(path, context, fh, False)
             active_file.flags = flags
             logger.debug("open new file " + active_file.to_string())
             self.files.update({fh: active_file})
@@ -318,7 +332,7 @@ class MyDLPFilter(LoggingMixIn, Operations):
     utimens = os.utime
 
     def write(self, path, data, offset, fh):
-        #print "WRITE is called. Path: " + path
+        print "WRITE is called. Path: " + path
         context = fuse_get_context()
         if fh in self.files:
             active_file = self.files[fh]
