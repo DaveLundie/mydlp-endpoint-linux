@@ -73,7 +73,7 @@ reload_upstart() {
 case "$1" in
     configure)
 	restart_rsyslog
-#	restart_udev
+	restart_udev
 #	reload_upstart
 #	patch_cupsfilters
 	;;
