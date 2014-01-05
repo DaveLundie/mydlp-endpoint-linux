@@ -3,12 +3,12 @@ PATH=/usr/bin:/usr/sbin:/bin:/sbin
 RUNDIR=/var/run/mydlpep
 
 function usage() {
-	echo "Usage: $0 start|stop DEVICE"
-	exit 1
+    echo "Usage: $0 start|stop DEVICE"
+    exit 1
 }
 
 if [ -z "$1" -o -z "$2" ]; then
-	usage
+    usage
 fi
 
 ACTION=$1
@@ -18,70 +18,75 @@ PIDFILE=$RUNDIR/$DEVICE
 PID=""
 
 function read_pid() {
-	if [ -f "$PIDFILE" ]; then
-		PID=$(cat $PIDFILE)
-	else
-		return 1
-	fi
-	return 0
+    if [ -f "$PIDFILE" ]; then
+        PID=$(cat $PIDFILE)
+    else
+        return 1
+    fi
+    return 0
 }
 
 function delete_pid() {
-	rm -f $PIDFILE
+    echo "delete"
+    rm -f $PIDFILE
 }
 
 function create_pid() {
-	echo $1 > $PIDFILE
+    echo $1 > $PIDFILE
 }
 
 function is_process_alive() {
-	if ps ax | grep -e "^ $PID " | grep 'mydlp-mount-filterfs.py' | grep "$DEVICE" > /dev/null; then
-		return 0
-	fi
-	return 1
+    if ps ax | grep -e "^ $PID " | grep 'mydlp-mount-filterfs.py' | grep "$DEVICE" > /dev/null; then
+        return 1
+    fi
+    return 0
 }
 
 function kill_process() {
-        sleep 3
-	kill -SIGINT $PID
-        sleep 2
+#    sleep 3
+    kill -SIGINT $PID
+    sleep 2
+    if is_process_alive; then
         kill $PID
         sleep 1
-        kill -9 $PID
-	delete_pid
+        if is_process_alive; then
+            kill -9 $PID
+        fi
+    fi
+    delete_pid
 }
 
 function start_service() {
-	if read_pid; then
-		if is_process_alive; then
-			echo "Process already exists for $DEVICE , exiting"
-			exit 1
-		else
-			delete_pid
-		fi
-	fi
+    if read_pid; then
+        if is_process_alive; then
+            echo "Process already exists for $DEVICE , exiting"
+            exit 1
+        else
+            delete_pid
+        fi
+    fi
 
-	/usr/share/mydlp-endpoint-linux/libexec/mydlp-mount-filterfs.py $DEVICE & > /dev/null 2>&1
-	create_pid $!
-	exit 0
+    /usr/share/mydlp-endpoint-linux/libexec/mydlp-mount-filterfs.py $DEVICE & > /dev/null 2>&1
+    create_pid $!
+    exit 0
 }
 
 function stop_service() {
-	if read_pid; then
-		if is_process_alive; then
-			kill_process > /dev/null 2>&1  &
-		else
-			delete_pid
-		fi
-	fi
-	exit 0
+    if read_pid; then
+        if is_process_alive; then
+            kill_process > /dev/null 2>&1  &
+        else
+            delete_pid
+        fi
+    fi
+    exit 0
 }
 
 if [ "$ACTION" == "start" ]; then
-	start_service
+    start_service
 elif [ "$ACTION" == "stop" ]; then
-	stop_service
+    stop_service
 else
-	usage
+    usage
 fi
 
